@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureJsonResponseMiddleware;
+use App\Http\Middleware\JwtRoleMiddleware;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,12 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->api(prepend: [EnsureJsonResponseMiddleware::class]);
+        $middleware->alias(['role' => JwtRoleMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $e) {
-            return $request->expectsJson();
-        });
-
         $exceptions->render(function (ValidationException $exception) {
             return jsonResponse(
                 status: 422,
