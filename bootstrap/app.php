@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureJsonResponseMiddleware;
 use App\Http\Middleware\JwtRoleMiddleware;
+use App\Http\Middleware\VerifyTokenStateMiddleware;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,6 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->group(
+            'auth:jwt',
+            middleware:[
+                'auth:api',
+                VerifyTokenStateMiddleware::class
+            ]
+        );
         $middleware->api(prepend: [EnsureJsonResponseMiddleware::class]);
         $middleware->alias(['role' => JwtRoleMiddleware::class]);
     })

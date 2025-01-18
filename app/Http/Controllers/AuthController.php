@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TokenType;
 use App\Http\Requests\AuthRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Token;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
@@ -16,7 +18,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api')->except('login');
+        $this->middleware('auth:jwt')->except('login');
     }
 
     /**
@@ -34,7 +36,8 @@ class AuthController extends Controller
             'password' => $request->password,
         ];
 
-        if (!$token = auth()->attempt($credentials)) {
+        $token = auth()->attempt($credentials);
+        if (!$token) {
             return jsonResponse(status: 401, message: 'Bad credentials.');
         }
 
@@ -43,7 +46,16 @@ class AuthController extends Controller
             return jsonResponse(status: 403, message: 'Email not verified.');
         }
 
-        return $this->respondWithToken($token, $user);
+        $storedToken = Token::create([
+            'token' => $token,
+            'token_type' => TokenType::BEARER,
+            'is_expired' => false,
+            'is_revoked' => false,
+            'expires_at' => now()->addMinutes(config('jwt.ttl')),
+            'user_id' => $user->id,
+        ]);
+
+        return $this->respondWithToken($storedToken, $user);
     }
 
     /**
@@ -64,8 +76,8 @@ class AuthController extends Controller
     public function logout()
     {
         auth()->logout();
-
-        return jsonResponse(message: 'Successfully logged out');
+        Token::where('user_id', auth()->id())->delete();
+        return jsonResponse(message: 'Successfully logged out.');
     }
 
     /**
@@ -81,17 +93,17 @@ class AuthController extends Controller
     /**
      * Get the token array structure.
      *
-     * @param string $token
+     * @param Token $token
      * @param User $user
      * @return JsonResponse
      */
-    protected function respondWithToken(string $token, User $user)
+    protected function respondWithToken(Token $token, User $user)
     {
         return jsonResponse(data: [
             'account' => new UserResource($user),
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60
+            'access_token' => $token->token,
+            'token_type' => $token->token_type,
+            'expires_in' => config('jwt.ttl') * 60,
         ]);
     }
 }
