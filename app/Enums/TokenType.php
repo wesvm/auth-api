@@ -6,7 +6,7 @@ enum TokenType: string
 {
     case FORGOT_PASSWORD = 'forgot_password';
     case RESET_PASSWORD = 'reset_password';
-    case VERIFY_EMAIL = 'verify_email';
+    case EMAIL_VERIFICATION = 'email_verification';
     case BEARER = 'bearer';
     case MFA = 'mfa';
 }
