@@ -25,7 +25,8 @@ class User extends Authenticatable implements JWTSubject
         'username',
         'email',
         'password',
-        'role'
+        'role',
+        'two_factor_secret',
     ];
 
     public function searchFields(): array
@@ -39,7 +40,8 @@ class User extends Authenticatable implements JWTSubject
      * @var list<string>
      */
     protected $hidden = [
-        'password'
+        'password',
+        'two_factor_secret',
     ];
 
     /**
