@@ -12,8 +12,8 @@ it('creates a user and sends email verification', function () {
     // Prepare the request data
     $data = [
         'name' => 'Test User',
-        'username' => 'example',
-        'email' => 'example@mail.com',
+        'username' => 'testuser',
+        'email' => 'test@mail.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
     ];
