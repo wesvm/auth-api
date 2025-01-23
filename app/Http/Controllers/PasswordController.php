@@ -31,8 +31,6 @@ class PasswordController extends Controller
             Token::create([
                'token' => $token,
                'token_type' => TokenType::FORGOT_PASSWORD,
-               'is_expired' => false,
-               'is_revoked' => false,
                'expires_at' => now()->addMinutes(5),
                'user_id' => $user->id,
             ]);

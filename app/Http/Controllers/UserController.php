@@ -58,11 +58,13 @@ class UserController extends Controller
                 'role' => 'user',
             ]);
 
+            Token::where('user_id', $user->id)
+                ->where('token_type', TokenType::EMAIL_VERIFICATION)
+                ->delete();
+
             $token = Token::create([
                 'token' => Str::uuid(),
                 'token_type' => TokenType::EMAIL_VERIFICATION,
-                'is_expired' => false,
-                'is_revoked' => false,
                 'expires_at' => now()->addHours(2),
                 'user_id' => $user->id,
             ]);

@@ -49,8 +49,6 @@ class AuthController extends Controller
         $storedToken = Token::create([
             'token' => $token,
             'token_type' => TokenType::BEARER,
-            'is_expired' => false,
-            'is_revoked' => false,
             'expires_at' => now()->addMinutes(config('jwt.ttl')),
             'user_id' => $user->id,
         ]);
