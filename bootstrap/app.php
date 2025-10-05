@@ -17,13 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->group(
-            'auth:jwt',
-            middleware:[
-                'auth:api',
-                VerifyTokenStateMiddleware::class
-            ]
-        );
+        $middleware->group('auth:jwt', [
+            'auth:api',
+            VerifyTokenStateMiddleware::class
+        ]);
         $middleware->api(prepend: [EnsureJsonResponseMiddleware::class]);
         $middleware->alias(['role' => JwtRoleMiddleware::class]);
     })
@@ -37,11 +34,17 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (AuthenticationException $exception) {
-            return jsonResponse(status: 401, message: $exception->getMessage());
+            return jsonResponse(
+                status: 401,
+                message: $exception->getMessage() ?: 'Unauthenticated'
+            );
         });
 
         $exceptions->render(function (NotFoundHttpException $exception) {
-            return jsonResponse(status: 404, message: $exception->getMessage());
+            return jsonResponse(
+                status: 404,
+                message: $exception->getMessage() ?: 'Resource not found'
+            );
         });
 
         $exceptions->render(function (Throwable $exception) {
@@ -56,8 +59,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 status: 500,
                 message: $exception->getMessage(),
                 errors: [
-                    'exception' => class_basename($exception),
-                    'trace' => $exception->getTrace(),
+                    'exception' => get_class($exception),
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                    'trace' => collect($exception->getTrace())->take(5)->toArray()
                 ]
             );
         });

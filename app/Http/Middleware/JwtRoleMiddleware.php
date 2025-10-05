@@ -16,8 +16,19 @@ class JwtRoleMiddleware
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         $user = auth()->user();
-        if (!$user || !isset($user->role) || !in_array($user->role, $roles)) {
-            return jsonResponse(status: 403, message: 'Insufficient permissions.');
+
+        if (!$user) {
+            return jsonResponse(
+                status: 401,
+                message: 'Unauthenticated'
+            );
+        }
+
+        if (!in_array($user->role, $roles, true)) {
+            return jsonResponse(
+                status: 403,
+                message: 'Insufficient permissions'
+            );
         }
 
         return $next($request);

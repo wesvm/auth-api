@@ -6,6 +6,9 @@ use App\Models\Token;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Tymon\JWTAuth\Exceptions\TokenExpiredException;
+use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class VerifyTokenStateMiddleware
 {
@@ -16,25 +19,42 @@ class VerifyTokenStateMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $token = Token::where('token', $request->bearerToken())
-            ->where('user_id', auth()->id())->first();
+        try {
+            $bearerToken = $request->bearerToken();
 
-        if (!$token) {
-            return jsonResponse(status: 401, message: 'Unauthenticated.');
+            if (!$bearerToken) {
+                return jsonResponse(
+                    status: 401,
+                    message: 'Token not provided'
+                );
+            }
+
+            $user = auth()->user();
+
+            if (!$user) {
+                return jsonResponse(
+                    status: 401,
+                    message: 'Unauthenticated'
+                );
+            }
+
+            return $next($request);
+
+        } catch (TokenExpiredException $e) {
+            return jsonResponse(
+                status: 401,
+                message: 'Token has expired'
+            );
+        } catch (TokenInvalidException $e) {
+            return jsonResponse(
+                status: 401,
+                message: 'Token is invalid'
+            );
+        } catch (\Exception $e) {
+            return jsonResponse(
+                status: 401,
+                message: 'Authorization token could not be parsed'
+            );
         }
-
-        if ($token->is_revoked || $token->is_expired) {
-            return jsonResponse(status: 401, message: 'Token has been revoked or expired.');
-        }
-
-        if ($token->expires_at < now()) {
-            $token->update([
-                'is_expired' => true,
-            ]);
-            auth()->logout();
-            return jsonResponse(status: 401, message: 'Token has expired.');
-        }
-
-        return $next($request);
     }
 }

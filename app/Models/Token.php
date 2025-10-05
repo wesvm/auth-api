@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TokenType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,6 +24,7 @@ class Token extends Model
     protected function casts(): array
     {
         return [
+            'token_type' => TokenType::class,
             'is_revoked' => 'boolean',
             'is_expired' => 'boolean',
             'expires_at' => 'datetime',
@@ -39,5 +41,25 @@ class Token extends Model
         return $query->where('is_revoked', false)
             ->where('is_expired', false)
             ->where('expires_at', '>', now());
+    }
+
+    public function scopeOfType($query, TokenType $type)
+    {
+        return $query->where('token_type', $type);
+    }
+
+    public function isValid(): bool
+    {
+        return !$this->is_revoked
+            && !$this->is_expired
+            && $this->expires_at > now();
+    }
+
+    public function invalidate(): void
+    {
+        $this->update([
+            'is_revoked' => true,
+            'is_expired' => true,
+        ]);
     }
 }
