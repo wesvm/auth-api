@@ -18,7 +18,7 @@ Route::prefix('auth')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
-    
+
     Route::prefix('2fa')->group(function () {
         Route::get('status', [TwoFactorController::class, 'status']);
         Route::post('generate', [TwoFactorController::class, 'generate']);
@@ -26,12 +26,12 @@ Route::prefix('auth')->group(function () {
         Route::post('disable', [TwoFactorController::class, 'disable']);
         Route::post('recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes']);
     });
-});
 
-Route::prefix('password')->group(function (){
-   Route::post('/forgot', [PasswordController::class, 'forgot']);
-   Route::post('/reset', [PasswordController::class, 'reset']);
-   Route::put('/update', [PasswordController::class, 'update']);
+    Route::prefix('password')->group(function (){
+        Route::post('forgot', [PasswordController::class, 'forgot']);
+        Route::post('reset', [PasswordController::class, 'reset']);
+        Route::post('update', [PasswordController::class, 'update']);
+    });
 });
 
 Route::apiResource('users', UserController::class);
