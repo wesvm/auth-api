@@ -27,4 +27,11 @@ class AuthRequest extends FormRequest
             'password' => 'required|string',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'login.required' => 'The email or username field is required.',
+        ];
+    }
 }
