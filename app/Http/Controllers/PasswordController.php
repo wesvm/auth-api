@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TokenType;
+use App\Http\Requests\ForgotPasswordRequest;
+use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\UpdatePasswordRequest;
 use App\Mail\ResetPasswordMail;
 use App\Models\Token;
 use App\Models\User;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -17,70 +21,108 @@ class PasswordController extends Controller
         $this->middleware('auth:jwt')->only('update');
     }
 
-    public function forgot(Request $request)
+    /**
+     * Send password reset link
+     */
+    public function forgot(ForgotPasswordRequest $request): JsonResponse
     {
-        $request->validate(['email' => 'required|email|exists:users']);
-
+        $request->validate(['email' => 'required|email|exists:users,email']);
         $user = User::where('email', $request->email)->first();
-        $token = Str::uuid();
-        Token::where('user_id', $user->id)
-            ->where('token_type', TokenType::FORGOT_PASSWORD)
-            ->delete();
 
-        return transactional(function () use ($user, $token) {
+        return transactional(function () use ($user) {
+            Token::where('user_id', $user->id)
+                ->ofType(TokenType::RESET_PASSWORD)
+                ->active()
+                ->update(['is_revoked' => true]);
+
+            $plainToken = Str::random(64);
+            $hashedToken = hash('sha256', $plainToken);
+
             Token::create([
-               'token' => $token,
-               'token_type' => TokenType::FORGOT_PASSWORD,
-               'expires_at' => now()->addMinutes(5),
-               'user_id' => $user->id,
+                'token' => $hashedToken,
+                'token_type' => TokenType::RESET_PASSWORD,
+                'expires_at' => now()->addHour(),
+                'user_id' => $user->id,
             ]);
 
-            Mail::to($user->email)->send(new ResetPasswordMail($user, $token));
-            return jsonResponse(message: 'Token sent to your email.');
+            Mail::to($user->email)->send(
+                new ResetPasswordMail($user->name, $plainToken)
+            );
+
+            return jsonResponse(
+                message: 'Password reset link sent to your email'
+            );
         });
     }
 
-    public function reset(Request $request)
+    /**
+     * Reset password with token
+     */
+    public function reset(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => 'required|string',
-            'password' => 'required|string|confirmed|min:3',
-        ]);
+        return transactional(function () use ($request) {
+            $hashedToken = hash('sha256', $request->token);
 
-        $token = Token::where('token', $request->token)
-            ->where('token_type', TokenType::FORGOT_PASSWORD)
-            ->first();
+            $token = Token::ofType(TokenType::RESET_PASSWORD)
+                ->where('token', $hashedToken)
+                ->active()
+                ->first();
 
-        if(!$token) return jsonResponse(status: 400, message: 'Invalid token.');
-        if($token->is_revoked || $token->is_expired || $token->expires_at < now() ) {
-            return jsonResponse(status: 400, message: 'Token has been revoked or expired.');
-        };
+            if (!$token) {
+                return jsonResponse(
+                    status: 400,
+                    message: 'Invalid or expired reset token'
+                );
+            }
 
-        return transactional(function () use ($token, $request) {
-            $user = User::find($token->user_id);
-            $user->password = bcrypt($request->password);
+            if (!$token->isValid()) {
+                $token->update(['is_expired' => true]);
+                return jsonResponse(
+                    status: 400,
+                    message: 'Reset token has expired'
+                );
+            }
+
+            $user = $token->user;
+            $user->password = Hash::make($request->password);
             $user->save();
-            $token->delete();
-            return jsonResponse(message: 'Your password has been reset.');
+            $token->invalidate();
+
+            // TODO: Invalidate all JWT actives (blacklist)
+
+            return jsonResponse(
+                message: 'Password reset successfully. Please login with your new password.'
+            );
         });
     }
 
-    public function update(Request $request)
+    /**
+     * Update password (authenticated user)
+     */
+    public function update(UpdatePasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|confirmed|min:3',
-        ]);
-
         $user = auth()->user();
-        if(!password_verify($request->current_password, $user->password)) {
-            return jsonResponse(status: 400, message: 'Invalid current password.');
+        if (!Hash::check($request->current_password, $user->password)) {
+            return jsonResponse(
+                status: 400,
+                message: 'Current password is incorrect'
+            );
+        }
+
+        if (Hash::check($request->new_password, $user->password)) {
+            return jsonResponse(
+                status: 400,
+                message: 'New password must be different from current password'
+            );
         }
 
         return transactional(function () use ($user, $request) {
-            $user->password = bcrypt($request->new_password);
+            $user->password = Hash::make($request->new_password);
             $user->save();
-            return jsonResponse(message: 'Your password has been updated.');
+
+            return jsonResponse(
+                message: 'Password updated successfully'
+            );
         });
     }
 }
