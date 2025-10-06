@@ -21,17 +21,28 @@ function jsonResponse(int $status = 200, string $message = 'Ok', mixed $data = n
     return response()->json($response, $status);
 }
 
-
+/**
+ * @throws Throwable
+ */
 function transactional(Closure $callback)
 {
     DB::beginTransaction();
+
     try {
         $result = $callback();
         DB::commit();
         return $result;
-    } catch (Exception $exception) {
+    } catch (Throwable $exception) {
         DB::rollBack();
-        //Log::error($exception->getMessage());
-        return jsonResponse(status: 500, message: 'An error occurred.');
+
+        Log::error('Transaction failed', [
+            'message' => $exception->getMessage(),
+            'exception' => get_class($exception),
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+            'trace' => $exception->getTraceAsString()
+        ]);
+
+        throw $exception;
     }
 }
