@@ -3,7 +3,7 @@
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
-function jsonResponse(int $status = 200, string $message = 'Ok', $data = [], array $errors = []): JsonResponse
+function jsonResponse(int $status = 200, string $message = 'Ok', mixed $data = null, array $errors = []): JsonResponse
 {
     $response = [
         'status' => $status,
