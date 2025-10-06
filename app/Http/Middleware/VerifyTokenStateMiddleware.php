@@ -2,13 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Token;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class VerifyTokenStateMiddleware
 {
