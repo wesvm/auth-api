@@ -27,14 +27,6 @@
             font-size: 16px;
             line-height: 1.5;
         }
-        .token {
-            font-weight: bold;
-            color: #333;
-            background-color: #e6e6e6;
-            padding: 10px;
-            border-radius: 4px;
-            display: inline-block;
-        }
         .footer {
             text-align: center;
             margin-top: 20px;
@@ -50,8 +42,15 @@
         </header>
         <main class="content">
             <p>Hello {{ $name }},</p>
-            <p>Your token to verify:</p>
-            <p class="token">{{ $token }}</p>
+            <p>Please click the button below to verify your email address:</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ config('app.frontend_url') }}/verify-email?token={{ $token }}"
+                   target="_blank" rel="noopener noreferrer"
+                   style="background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Verify Email Address
+                </a>
+            </div>
         </main>
         <footer class="footer">
             <p>&copy; {{ date('Y') }}.</p>
