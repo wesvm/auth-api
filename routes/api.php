@@ -34,13 +34,14 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-Route::apiResource('users', UserController::class);
+Route::middleware('auth:jwt')->group(function () {
+    Route::get('users', [UserController::class, 'index']);
+    Route::get('users/{user}', [UserController::class, 'show']);
 
-Route::group([
-    'middleware' => ['auth:jwt', 'role:admin'],
-    'prefix' => 'admin'
-], function () {
-    Route::get('/', function () {
-        return 'hi admin';
-    });
+    Route::put('users/{user}', [UserController::class, 'update']);
+    Route::patch('users/{user}', [UserController::class, 'update']);
+
+    //only admin
+    Route::delete('users/{user}', [UserController::class, 'destroy'])
+        ->middleware('role:admin');
 });

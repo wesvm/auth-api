@@ -50,8 +50,16 @@
         </header>
         <main class="content">
             <p>Hello {{ $name }},</p>
-            <p>We received a request to reset your password. Use the following token to reset your password:</p>
-            <p class="token">{{ $token }}</p>
+            <p>We received a request to reset your password. Please click the button below to reset your password:</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ config('app.frontend_url') }}/reset-password?token={{ $token }}"
+                   target="_blank" rel="noopener noreferrer"
+                   style="background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Reset Password
+                </a>
+            </div>
+
             <p>If you did not request a password reset, please ignore this email.</p>
         </main>
         <footer class="footer">

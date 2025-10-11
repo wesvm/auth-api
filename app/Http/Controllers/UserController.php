@@ -9,24 +9,29 @@ use App\Models\Token;
 use App\Models\User;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:jwt')->except(['store']);
-    }
     /**
-     * Display a listing of the resource.
+     * Display a listing of users
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'page' => ['integer', 'min:1'],
+            'perPage' => ['integer', 'min:1', 'max:100'],
+            'search' => ['string', 'max:255'],
+        ]);
+
         $page = $request->query('page', 1);
-        $perPage = $request->query('perPage', 10);
+        $perPage = min($request->query('perPage', 10), 100);
         $search = $request->query('search', '');
+
         $users = User::search($search)
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -45,69 +50,73 @@ class UserController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Display the specified user
+     */
+    public function show(User $user): JsonResponse
+    {
+        Gate::authorize('view', $user);
+
+        return jsonResponse(
+            data: ['user' => new UserResource($user)]
+        );
+    }
+
+    /**
+     * Display the specified user
      */
     public function store(StoreUserRequest $request)
     {
-        return transactional(function () use ($request){
-            $user = User::create([
-                'name' => $request->name,
-                'username' => $request->username,
-                'email' => $request->email,
-                'password' => bcrypt($request->password),
-                'role' => 'user',
-            ]);
-
-            Token::where('user_id', $user->id)
-                ->where('token_type', TokenType::EMAIL_VERIFICATION)
-                ->delete();
-
-            $token = Token::create([
-                'token' => Str::uuid(),
-                'token_type' => TokenType::EMAIL_VERIFICATION,
-                'expires_at' => now()->addHours(2),
-                'user_id' => $user->id,
-            ]);
-            Mail::to($user->email)->send(new EmailVerification($user->name, $token->token));
-            return jsonResponse(message: 'Check your email for verification link.');
-        });
+        return "";
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(User $user)
-    {
-        return jsonResponse(data: ['user' => new UserResource($user)]);
-    }
+
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified user
      */
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
+        Gate::authorize('update', $user);
+
         return transactional(function () use ($request, $user){
             $user->name = $request->name;
             $user->username = $request->username;
-            $user->email = $request->email;
+            // $user->email = $request->email;
 
             if($user->isDirty()){
                 $user->save();
                 return jsonResponse(
                     message: 'User updated successfully',
-                    data: ['user' => new UserResource($user)],
+                    data: ['user' => new UserResource($user->fresh())]
                 );
             }
 
-            return jsonResponse(message: 'No changes were made');
+            return jsonResponse(
+                message: 'No changes were made',
+                data: ['user' => new UserResource($user)]
+            );
         });
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified user (Admin only)
      */
-    public function destroy(User $user)
+    public function destroy(User $user): JsonResponse
     {
-        return jsonResponse(message: 'Not implemented yet');
+        if ($user->id === auth()->id()) {
+            return jsonResponse(
+                status: 400,
+                message: 'You cannot delete your own account'
+            );
+        }
+
+        return transactional(function () use ($user) {
+            $userName = $user->name;
+            $user->delete();
+
+            return jsonResponse(
+                message: "User '{$userName}' deleted successfully"
+            );
+        });
     }
 }

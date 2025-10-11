@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -12,7 +13,7 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,10 +23,19 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
+        $userId = $this->route('user')->id;
+
         return [
-            'name' => 'required|string',
-            'username' => 'required|string|unique:users,username|lowercase',
-            'email' => 'required|string|unique:users,email',
+            'name' => 'sometimes|string|max:255',
+            'username' => 'sometimes|string|max:255|lowercase|regex:/^[a-zA-Z0-9_]+$/' .  Rule::unique('users', 'username')->ignore($userId),,
+            'email' => 'sometimes|email|max:255' . Rule::unique('users', 'email')->ignore($userId),
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'username.regex' => 'Username can only contain letters, numbers and underscores'
         ];
     }
 }
