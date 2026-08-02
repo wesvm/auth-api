@@ -69,8 +69,6 @@ class UserController extends Controller
         return "";
     }
 
-
-
     /**
      * Update the specified user
      */
@@ -79,12 +77,11 @@ class UserController extends Controller
         Gate::authorize('update', $user);
 
         return transactional(function () use ($request, $user){
-            $user->name = $request->name;
-            $user->username = $request->username;
-            // $user->email = $request->email;
+            $user->fill($request->validated());
 
             if($user->isDirty()){
                 $user->save();
+
                 return jsonResponse(
                     message: 'User updated successfully',
                     data: ['user' => new UserResource($user->fresh())]

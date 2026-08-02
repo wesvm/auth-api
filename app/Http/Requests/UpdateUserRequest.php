@@ -16,6 +16,13 @@ class UpdateUserRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->replace(
+            array_filter($this->all(), fn ($value) => !is_null($value) && $value !== '')
+        );
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -23,12 +30,25 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('user')->id;
+        $user = $this->route('user');
+        $userId = is_object($user) ? $user->id : $user;
 
         return [
-            'name' => 'sometimes|string|max:255',
-            'username' => 'sometimes|string|max:255|lowercase|regex:/^[a-zA-Z0-9_]+$/' .  Rule::unique('users', 'username')->ignore($userId),,
-            'email' => 'sometimes|email|max:255' . Rule::unique('users', 'email')->ignore($userId),
+            'name' => ['sometimes', 'string', 'max:255'],
+            'username' => [
+                'sometimes',
+                'string',
+                'max:255',
+                'lowercase',
+                'regex:/^[a-zA-Z0-9_]+$/',
+                Rule::unique('users', 'username')->ignore($userId),
+            ],
+            'email' => [
+                'sometimes',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+            ],
         ];
     }
 
