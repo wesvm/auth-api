@@ -14,8 +14,8 @@ class Disable2FARequest extends FormRequest
     public function rules(): array
     {
         return [
-            'password' => 'required_without:code|string',
-            'code' => 'required_without:password|string|size:6|regex:/^[0-9]{6}$/',
+            'password' => ['nullable', 'required_without:code', 'string'],
+            'code' => ['nullable', 'required_without:password', 'string', 'size:6', 'regex:/^[0-9]{6}$/'],
         ];
     }
 
@@ -24,6 +24,7 @@ class Disable2FARequest extends FormRequest
         return [
             'password.required_without' => 'Password or 2FA code is required',
             'code.required_without' => 'Password or 2FA code is required',
+            'code.size' => '2FA code must be exactly 6 digits',
             'code.regex' => '2FA code must contain only numbers',
         ];
     }

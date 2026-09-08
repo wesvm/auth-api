@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Disable2FARequest;
 use App\Http\Requests\Enable2FARequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PragmaRX\Google2FA\Exceptions\IncompatibleWithGoogleAuthenticatorException;
 use PragmaRX\Google2FA\Exceptions\InvalidCharactersException;
 use PragmaRX\Google2FA\Exceptions\SecretKeyTooShortException;
 use PragmaRX\Google2FAQRCode\Google2FA;
 use PragmaRX\Google2FAQRCode\Exceptions\MissingQrCodeServiceException;
+use Throwable;
 
 class TwoFactorController extends Controller
 {
@@ -121,7 +124,7 @@ class TwoFactorController extends Controller
      *
      * @throws IncompatibleWithGoogleAuthenticatorException
      * @throws SecretKeyTooShortException
-     * @throws InvalidCharactersException
+     * @throws InvalidCharactersException|Throwable
      */
     public function disable(Disable2FARequest $request): JsonResponse
     {
@@ -134,33 +137,28 @@ class TwoFactorController extends Controller
             );
         }
 
-        return transactional(function () use ($user, $request) {
-            if ($request->has('password')) {
-                if (!auth()->attempt([
-                    'email' => $user->email,
-                    'password' => $request->password,
-                ])) {
-                    return jsonResponse(
-                        status: 400,
-                        message: 'Invalid password'
-                    );
-                }
-            } elseif ($request->has('code')) {
-                $google2fa = new Google2FA();
-                $valid = $google2fa->verifyKey($user->two_factor_secret, $request->code);
-
-                if (!$valid) {
-                    return jsonResponse(
-                        status: 400,
-                        message: 'Invalid 2FA code'
-                    );
-                }
+        if ($request->filled('password')) {
+            if (!Hash::check($request->password, $user->password)) {
+                throw ValidationException::withMessages([
+                    'password' => ['The provided password is incorrect.'],
+                ]);
             }
+        } elseif ($request->filled('code')) {
+            $google2fa = new Google2FA();
+            $valid = $google2fa->verifyKey($user->two_factor_secret, $request->code);
+            if (!$valid) {
+                throw ValidationException::withMessages([
+                    'code' => ['The provided 2FA code is invalid or has expired.'],
+                ]);
+            }
+        }
 
-            $user->two_factor_secret = null;
-            $user->two_factor_enabled = false;
-            $user->two_factor_confirmed_at = null;
-            $user->save();
+        return transactional(function () use ($user) {
+            $user->forceFill([
+                'two_factor_secret' => null,
+                'two_factor_enabled' => false,
+                'two_factor_confirmed_at' => null,
+            ])->save();
 
             // TODO: Delete recovery codes de la tabla
 
